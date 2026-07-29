@@ -47,9 +47,12 @@ echo "Hummely phone test is ready."
 echo "1. Keep this Terminal window open."
 echo "2. Wait for the HTTPS address below."
 echo "3. Open it on your phone with Safari or Chrome."
-echo "4. Install to Home Screen if you want the app-like experience."
+echo "4. On first visit, tap the Pinggy page's Continue button."
+echo "5. Install to Home Screen if you want the app-like experience."
+echo ""
+echo "The free HTTPS link expires after about 60 minutes."
 echo ""
 echo "Local preview: ${LOCAL_URL}"
 echo ""
 
-ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:localhost:"$PORT" nokey@localhost.run
+ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R0:localhost:"$PORT" a.pinggy.io
