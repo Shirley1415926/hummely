@@ -15,10 +15,15 @@ if ("serviceWorker" in navigator && isTemporaryTunnel) {
     });
   });
 } else if ("serviceWorker" in navigator) {
+  const serviceWorkerVersion = "20260824-articulation-events-v1";
+
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
-      console.warn("Service worker registration failed:", error);
-    });
+    navigator.serviceWorker
+      .register(`/sw.js?v=${serviceWorkerVersion}`, { updateViaCache: "none" })
+      .then((registration) => registration.update())
+      .catch((error) => {
+        console.warn("Service worker registration failed:", error);
+      });
   });
 }
 

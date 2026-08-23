@@ -1,4 +1,4 @@
-const CACHE_NAME = "hummely-shell-v1";
+const CACHE_NAME = "hummely-shell-v13-articulation-events";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -39,26 +39,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", clone));
-          return response;
-        })
-        .catch(() => caches.match("/index.html"))
-    );
-    return;
-  }
-
+  // Prefer a fresh deployed bundle online; cache is the offline fallback only.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (!response || response.status !== 200 || response.type === "opaque") {
           return response;
         }
@@ -66,7 +50,13 @@ self.addEventListener("fetch", (event) => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
-      });
-    })
+      })
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          if (request.mode === "navigate") return caches.match("/index.html");
+          return Response.error();
+        })
+      )
   );
 });

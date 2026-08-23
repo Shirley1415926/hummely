@@ -6,11 +6,27 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && mkdir -p dist/server && cp worker/index.js dist/server/index.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:basic-pitch": "node scripts/check-basic-pitch.mjs",
+    "check:realtime-pitch": "node scripts/check-realtime-pitch.mjs",
+    "check:notation": "node scripts/check-notation.mjs",
+    "check:phrase-legato": "node scripts/check-phrase-playback.mjs",
+    "check:rhythm": "node scripts/check-rhythm-engine.mjs",
+    "check:rhythm-source": "node scripts/check-rhythm-source-priority.mjs",
+    "check:metronome": "node scripts/check-metronome-scheduler.mjs",
+    "check:sampled-instruments": "node scripts/check-sampled-instrument-engine.mjs",
+    "check:articulation": "node scripts/check-vocal-articulation.mjs",
+    "check:manual-edits": "node scripts/check-manual-note-edits.mjs",
+    "check:recognition-regression": "node scripts/check-recognition-regression.mjs"
   },
   "dependencies": {
+    "@soundtouchjs/audio-worklet": "^2.1.1",
+    "@spotify/basic-pitch": "1.0.1",
+    "pitchy": "4.1.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "smplr": "^1.0.0",
+    "vexflow": "5.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.4",
