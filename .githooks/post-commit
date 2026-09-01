@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Keep the GitHub mirror current after every successful local commit.
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+
+if git remote get-url github >/dev/null 2>&1; then
+  git push github "$branch"
+fi
