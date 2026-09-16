@@ -23,6 +23,7 @@ import {
   QUANTIZATION_MODES
 } from "./rhythmConfig";
 import { annotateOriginalRhythmNotes, buildRhythmData, createRhythmExport, quantizeRhythmNotes } from "./rhythmEngine";
+import { applyMelodyAgentPlan, createMelodyAgentPlan, MELODY_AGENT_EXAMPLES } from "./melodyAgent";
 
 const durationOptions = [
   { label: "八分", beats: 0.5 },
@@ -2389,6 +2390,10 @@ function ProductApp() {
   const [libraryLoading, setLibraryLoading] = useState(true);
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [projectRevision, setProjectRevision] = useState(0);
+  const [agentGoal, setAgentGoal] = useState("");
+  const [agentPlan, setAgentPlan] = useState(null);
+  const [agentRun, setAgentRun] = useState(null);
+  const [agentUndoSnapshot, setAgentUndoSnapshot] = useState(null);
 
   const audioRef = useRef(initialAudioState());
   const recognitionBaselineRef = useRef([]);
@@ -4177,8 +4182,8 @@ function ProductApp() {
     queueProjectSave("edited");
   }
 
-  function currentRhythmModel() {
-    const stored = normalizeRhythmSource(rhythmData) || buildRhythmData(notes, {
+  function currentRhythmModel(sourceNotes = notes) {
+    const stored = normalizeRhythmSource(rhythmData) || buildRhythmData(sourceNotes, {
       selectedBpm: melody.tempo || DEFAULT_RHYTHM_SETTINGS.selectedBpm,
       selectedTimeSignature: "4/4",
       quantizationMode: "original",
@@ -4188,9 +4193,9 @@ function ProductApp() {
       naturalTempo: melody.tempo,
       naturalBeatUnitSeconds: melody.beatUnitSeconds
     });
-    if (!notes.length) return stored;
+    if (!sourceNotes.length) return stored;
     const formalIsQuantized = stored.rhythmSource === "quantized" && Boolean(stored.quantizationEnabled);
-    const annotatedFormalNotes = annotateOriginalRhythmNotes(notes, stored);
+    const annotatedFormalNotes = annotateOriginalRhythmNotes(sourceNotes, stored);
     // melody.notes is the single formal source. Only the matching branch receives its display metadata.
     return {
       ...stored,
@@ -4202,11 +4207,15 @@ function ProductApp() {
     };
   }
 
-  function updateRhythmPreview(patch = {}) {
-    if (!notes.length) return;
-    const base = currentRhythmModel();
+  function updateRhythmPreview(patch = {}, sourceNotes = notes, preferSourceNotes = false) {
+    if (!sourceNotes.length) return;
+    const base = currentRhythmModel(sourceNotes);
     const formalIsQuantized = base.rhythmSource === "quantized" && Boolean(base.quantizationEnabled);
-    const originalNotes = base.originalRhythmNotes?.length ? base.originalRhythmNotes : annotateOriginalRhythmNotes(notes, base).notes;
+    const originalNotes = preferSourceNotes
+      ? annotateOriginalRhythmNotes(sourceNotes, base).notes
+      : base.originalRhythmNotes?.length
+        ? base.originalRhythmNotes
+        : annotateOriginalRhythmNotes(sourceNotes, base).notes;
     const next = {
       ...base,
       ...patch,
@@ -4469,6 +4478,76 @@ function ProductApp() {
     });
     setSelectedNote(firstIndex);
     setStatusMessage("相同音高已合并，起止时间和持续时间已按两个音的完整范围更新。 ");
+    queueProjectSave("edited");
+  }
+
+  function planAgentGoal(goal = agentGoal) {
+    const nextGoal = String(goal || "").trim();
+    if (!nextGoal) {
+      showToast("先告诉 Agent 你想怎么调整");
+      return;
+    }
+    setAgentGoal(nextGoal);
+    const plan = createMelodyAgentPlan(nextGoal, { melody, rhythm: currentRhythmModel(), instrument, playbackStyle });
+    setAgentPlan(plan);
+    setAgentRun(null);
+    setStatusMessage(plan.summary);
+  }
+
+  function executeAgentPlan() {
+    if (!agentPlan?.steps?.length || agentPlan.status !== "awaiting_approval") return;
+    const snapshot = {
+      melody: deepClone(melody),
+      rhythm: deepClone(rhythmData),
+      instrument,
+      playbackStyle
+    };
+    const execution = applyMelodyAgentPlan(agentPlan, melody);
+    const rhythmStep = agentPlan.steps.find((step) => step.tool === "prepare_rhythm_preview");
+    const instrumentStep = agentPlan.steps.find((step) => step.tool === "set_instrument");
+    const playbackStep = agentPlan.steps.find((step) => step.tool === "set_playback_style");
+
+    setAgentUndoSnapshot(snapshot);
+    setMelody(execution.melody);
+    if (instrumentStep) {
+      stopInstrumentPlayback();
+      setInstrument(instrumentStep.args.instrument);
+      setInstrumentLoadState({ state: "idle", instrumentId: instrumentStep.args.instrument, loaded: 0, total: 0, cached: false, error: "" });
+    }
+    if (playbackStep) setPlaybackStyle(playbackStep.args.style);
+    if (rhythmStep) updateRhythmPreview(rhythmStep.args, execution.melody.notes, true);
+
+    const externalReview = [
+      instrumentStep ? `试听音色已切换为 ${instrumentStep.args.instrument === "Piano" ? "钢琴" : "木琴"}。` : null,
+      playbackStep ? `播放方式已切换为 ${playbackStep.args.style === "legato" ? "连奏" : "断奏"}。` : null,
+      rhythmStep ? "节奏方案已生成为预览，尚未覆盖正式曲谱。" : null
+    ].filter(Boolean);
+    setAgentRun({
+      status: "completed",
+      planId: agentPlan.id,
+      completedAt: new Date().toISOString(),
+      review: [...execution.review, ...externalReview],
+      tools: agentPlan.steps.map((step) => step.tool)
+    });
+    setAgentPlan((current) => ({ ...current, status: "completed" }));
+    setStatusMessage("旋律 Agent 已执行并完成结果复核，你可以试听或一键撤销。");
+    showToast(`Agent 已调用 ${agentPlan.steps.length} 个工具`);
+    queueProjectSave("edited");
+  }
+
+  function undoAgentRun() {
+    if (!agentUndoSnapshot) return;
+    stopInstrumentPlayback();
+    setMelody(deepClone(agentUndoSnapshot.melody));
+    setRhythmData(deepClone(agentUndoSnapshot.rhythm));
+    setRhythmPreviewMode(agentUndoSnapshot.rhythm?.rhythmSource === "quantized" ? "quantized" : "original");
+    setInstrument(agentUndoSnapshot.instrument);
+    setPlaybackStyle(agentUndoSnapshot.playbackStyle);
+    setAgentRun((current) => current ? { ...current, status: "undone" } : null);
+    setAgentPlan(null);
+    setAgentUndoSnapshot(null);
+    setStatusMessage("已撤销本次 Agent 操作，恢复执行前的旋律与试听设置。");
+    showToast("已撤销 Agent 操作");
     queueProjectSave("edited");
   }
 
@@ -4819,46 +4898,48 @@ function ProductApp() {
         ) : null}
 
         {activeTab === "arrange" ? (
-          <section className="screen arrangement-preview-screen">
-            <div className="arrangement-preview-head">
-              <span className="eyebrow">未来创作工具</span>
-              <h1>AI 编曲<small>让一段哼唱，慢慢长成一首歌</small></h1>
-              <p>未来你可以保留自己的主旋律，并让 AI 帮你选择音乐风格、加入乐器和生成完整伴奏。</p>
+          <section className="screen melody-agent-screen">
+            <div className="agent-hero">
+              <div><span className="eyebrow">Goal · Plan · Act · Review</span><h1>旋律 Agent<small>用一句话调整你的作品</small></h1></div>
+              <span className="agent-local-badge">本地执行 · 音频不上传</span>
+              <p>Agent 会先观察当前旋律，再把目标拆成可执行工具。所有修改都要经过你确认，并可以一键撤销。</p>
             </div>
 
-            <section className="arrangement-visual" aria-label="从哼唱到完整歌曲的未来编曲流程示意">
-              <div className="arrangement-visual-topline"><strong>从哼唱到完整歌曲</strong><span>即将上线</span></div>
-              <p>保留你的旋律，再为它加入和弦、节奏和伴奏。</p>
-              <div className="arrangement-track-list" aria-hidden="true">
-                <div className="arrangement-track humming-track">
-                  <div className="track-label"><span>01</span><strong>你的哼唱</strong></div>
-                  <div className="track-lane melody-lane"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div>
-                </div>
-                <div className="arrangement-track chord-track">
-                  <div className="track-label"><span>02</span><strong>加入和弦</strong></div>
-                  <div className="track-lane chord-lane"><i /><i /><i /><i /></div>
-                </div>
-                <div className="arrangement-track rhythm-track">
-                  <div className="track-label"><span>03</span><strong>加入节奏</strong></div>
-                  <div className="track-lane rhythm-lane"><i /><i /><i /><i /><i /><i /><i /><i /></div>
-                </div>
-                <div className="arrangement-track full-track">
-                  <div className="track-label"><span>04</span><strong>完整伴奏</strong></div>
-                  <div className="track-lane full-lane"><b /><b /><b /></div>
-                </div>
+            <section className="agent-goal-card">
+              <label htmlFor="agentGoal"><span>01</span><strong>你想让这段旋律怎么变？</strong></label>
+              <textarea id="agentGoal" value={agentGoal} onChange={(event) => setAgentGoal(event.target.value)} placeholder="例如：让它更舒缓，用钢琴连奏，并延长尾音" rows="3" />
+              <div className="agent-example-list">
+                {MELODY_AGENT_EXAMPLES.map((example) => <button key={example} onClick={() => { setAgentGoal(example); planAgentGoal(example); }}>{example}</button>)}
               </div>
+              <button className="primary-action agent-plan-button" disabled={!agentGoal.trim()} onClick={() => planAgentGoal()}><AppIcon name="sparkle" size={18} />分析并制定计划</button>
             </section>
 
-            <section className="arrangement-future-grid" aria-label="AI 编曲未来能力预览">
-              <article><span className="future-tag">即将上线</span><strong>选择风格</strong><p>流行、民谣、电子、电影感</p></article>
-              <article><span className="future-tag">即将上线</span><strong>选择声音</strong><p>钢琴、吉他、弦乐、鼓和贝斯</p></article>
-              <article><span className="future-tag">即将上线</span><strong>生成多个版本</strong><p>简单伴奏、完整编曲、氛围版本</p></article>
-            </section>
+            {!notes.length ? (
+              <section className="agent-empty-state"><strong>等待一段旋律</strong><p>录音或导入音频并完成识别后，Agent 才能读取真实音高、节奏和乐句。</p><button className="secondary-action" onClick={() => switchTab("capture")}>去录入旋律</button></section>
+            ) : null}
 
-            <section className="arrangement-status-card">
-              <div><span className="eyebrow">创作持续生长</span><strong>AI 编曲正在准备中</strong><p>当前版本可以先完成录音、曲谱识别和旋律修正。</p></div>
-              <button className="primary-action arrangement-back-button" onClick={() => switchTab("score")}><AppIcon name="score" size={18} />返回曲谱</button>
-            </section>
+            {agentPlan ? (
+              <section className={`agent-plan-card ${agentPlan.status}`}>
+                <div className="agent-section-heading"><span>02</span><div><strong>Agent 观察与计划</strong><small>决策置信度 {Math.round((agentPlan.confidence || 0) * 100)}%</small></div></div>
+                <div className="agent-observations">
+                  {agentPlan.analysis.observations.map((observation) => <p key={observation}>{observation}</p>)}
+                </div>
+                {agentPlan.steps.length ? <div className="agent-tool-list">
+                  {agentPlan.steps.map((step, index) => <article key={step.id}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{step.label}</strong><p>{step.description}</p><code>{step.tool}</code></div><em>{step.effect === "preview" ? "仅预览" : "可撤销"}</em></article>)}
+                </div> : <p className="agent-clarification">{agentPlan.nextAction}</p>}
+                {agentPlan.status === "awaiting_approval" ? <div className="agent-approval"><p>尚未修改作品。确认后 Agent 才会调用上述工具。</p><button className="primary-action" onClick={executeAgentPlan}>确认执行</button></div> : null}
+              </section>
+            ) : null}
+
+            {agentRun ? (
+              <section className={`agent-review-card ${agentRun.status}`}>
+                <div className="agent-section-heading"><span>03</span><div><strong>{agentRun.status === "undone" ? "操作已撤销" : "Agent 结果复核"}</strong><small>{agentRun.tools.length} 次工具调用已记录</small></div></div>
+                {agentRun.review.map((item) => <p key={item}>{item}</p>)}
+                {agentRun.status === "completed" ? <div className="agent-review-actions"><button className="primary-action" onClick={() => { switchTab("score"); void playMelody(0); }}>去试听结果</button><button className="secondary-action" onClick={undoAgentRun}>撤销本次操作</button></div> : null}
+              </section>
+            ) : null}
+
+            <section className="agent-boundary-card"><strong>当前能力边界</strong><p>已支持移调、尾音延长、节奏预览、音色和演奏方式选择。尚未生成和弦或完整伴奏，Agent 不会伪装已完成这些能力。</p></section>
           </section>
         ) : null}
       </main>

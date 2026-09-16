@@ -17,7 +17,8 @@
     "check:sampled-instruments": "node scripts/check-sampled-instrument-engine.mjs",
     "check:articulation": "node scripts/check-vocal-articulation.mjs",
     "check:manual-edits": "node scripts/check-manual-note-edits.mjs",
-    "check:recognition-regression": "node scripts/check-recognition-regression.mjs"
+    "check:recognition-regression": "node scripts/check-recognition-regression.mjs",
+    "check:melody-agent": "node scripts/check-melody-agent.mjs"
   },
   "dependencies": {
     "@soundtouchjs/audio-worklet": "^2.1.1",

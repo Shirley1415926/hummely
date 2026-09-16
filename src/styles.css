@@ -2253,6 +2253,57 @@ button {
   .track-label strong { font-size: 10px; }
 }
 
+/* Explainable melody agent: visible observe-plan-act-review states for a trustworthy editing flow. */
+.melody-agent-screen { display: grid; gap: 15px; padding-bottom: 128px; }
+.agent-hero { display: grid; gap: 11px; padding: 3px 2px 4px; }
+.agent-hero h1 { margin: 7px 0 0; color: var(--app-ink); font-size: clamp(38px, 10vw, 54px); line-height: 0.98; letter-spacing: -0.075em; }
+.agent-hero h1 small { display: block; margin-top: 9px; color: var(--app-sea-dark); font-size: clamp(18px, 5vw, 25px); letter-spacing: -0.05em; }
+.agent-hero > p { max-width: 590px; margin: 0; color: var(--app-muted); font-size: 14px; line-height: 1.7; }
+.agent-local-badge { width: fit-content; padding: 6px 9px; border: 1px solid rgba(22, 154, 130, 0.2); border-radius: 999px; color: var(--app-sea-dark); background: #e8f8f2; font-size: 10px; font-weight: 900; }
+
+.agent-goal-card, .agent-plan-card, .agent-review-card, .agent-empty-state, .agent-boundary-card { padding: 17px; border: 1px solid rgba(24, 49, 55, 0.09); border-radius: 22px; background: rgba(255, 253, 249, 0.88); box-shadow: var(--app-shadow-sm); }
+.agent-goal-card { display: grid; gap: 12px; background: linear-gradient(145deg, rgba(255, 253, 249, 0.98), rgba(237, 250, 246, 0.92)); }
+.agent-goal-card label { display: flex; align-items: center; gap: 8px; color: var(--app-ink); font-size: 14px; }
+.agent-goal-card label span, .agent-section-heading > span { display: grid; width: 27px; height: 27px; flex: 0 0 27px; place-items: center; border-radius: 9px; color: var(--app-sea-dark); background: #dff5ec; font-size: 10px; font-weight: 900; }
+.agent-goal-card textarea { width: 100%; min-height: 86px; resize: vertical; padding: 13px 14px; border: 1px solid rgba(24, 49, 55, 0.12); border-radius: 15px; color: var(--app-ink); background: rgba(255, 255, 255, 0.82); font: inherit; font-size: 14px; line-height: 1.55; outline: none; }
+.agent-goal-card textarea:focus { border-color: rgba(24, 168, 142, 0.5); box-shadow: 0 0 0 3px rgba(24, 168, 142, 0.1); }
+.agent-example-list { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.agent-example-list::-webkit-scrollbar { display: none; }
+.agent-example-list button { min-width: min(78vw, 310px); padding: 9px 11px; border: 1px solid rgba(120, 105, 230, 0.14); border-radius: 12px; color: #6657c8; background: #f3f0ff; font-size: 11px; line-height: 1.4; text-align: left; }
+.agent-plan-button { width: 100%; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+
+.agent-empty-state { display: grid; gap: 8px; justify-items: start; border-style: dashed; }
+.agent-empty-state strong { color: var(--app-ink); font-size: 17px; }
+.agent-empty-state p, .agent-boundary-card p { margin: 0; color: var(--app-muted); font-size: 12px; line-height: 1.6; }
+.agent-section-heading { display: flex; align-items: center; gap: 9px; }
+.agent-section-heading > div { display: grid; gap: 2px; }
+.agent-section-heading strong { color: var(--app-ink); font-size: 17px; letter-spacing: -0.035em; }
+.agent-section-heading small { color: var(--app-muted); font-size: 10px; font-weight: 800; }
+.agent-observations { display: grid; gap: 5px; margin: 13px 0; padding: 11px 12px; border-radius: 14px; background: #f5f7f6; }
+.agent-observations p, .agent-review-card > p { margin: 0; color: var(--app-muted); font-size: 12px; line-height: 1.55; }
+.agent-observations p::before, .agent-review-card > p::before { margin-right: 6px; color: var(--app-sea); content: "✓"; font-weight: 900; }
+.agent-tool-list { display: grid; gap: 8px; }
+.agent-tool-list article { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 9px; align-items: start; padding: 11px; border: 1px solid rgba(24, 49, 55, 0.075); border-radius: 14px; background: #fff; }
+.agent-tool-list article > span { color: var(--app-purple); font-size: 10px; font-weight: 900; }
+.agent-tool-list article > div { display: grid; gap: 4px; }
+.agent-tool-list article strong { color: var(--app-ink); font-size: 13px; }
+.agent-tool-list article p { margin: 0; color: var(--app-muted); font-size: 11px; line-height: 1.45; }
+.agent-tool-list article code { width: fit-content; padding: 3px 5px; border-radius: 5px; color: #6758c8; background: #f2efff; font-size: 9px; }
+.agent-tool-list article em { padding: 4px 6px; border-radius: 999px; color: var(--app-sea-dark); background: #e7f7f1; font-size: 9px; font-style: normal; font-weight: 900; white-space: nowrap; }
+.agent-approval { display: grid; gap: 9px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(24, 49, 55, 0.08); }
+.agent-approval p, .agent-clarification { margin: 0; color: var(--app-muted); font-size: 11px; line-height: 1.5; }
+.agent-review-card { display: grid; gap: 8px; border-color: rgba(24, 168, 142, 0.22); background: linear-gradient(145deg, #edfaf5, #fffdf9); }
+.agent-review-card.undone { opacity: 0.7; }
+.agent-review-actions { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin-top: 5px; }
+.agent-boundary-card { box-shadow: none; background: rgba(243, 240, 255, 0.62); }
+.agent-boundary-card strong { display: block; margin-bottom: 5px; color: #6657c8; font-size: 12px; }
+
+@media (min-width: 761px) {
+  .melody-agent-screen { gap: 19px; }
+  .agent-goal-card, .agent-plan-card, .agent-review-card, .agent-empty-state, .agent-boundary-card { padding: 21px; }
+  .agent-approval { grid-template-columns: minmax(0, 1fr) 150px; align-items: center; }
+}
+
 /* Local creations reuse the existing mobile card language without adding a new app shell. */
 .project-name-field {
   position: relative;
